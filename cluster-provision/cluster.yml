@@ -1,0 +1,68 @@
+---
+# cluster.yml
+- name: Install K3s on Master Nodes
+  hosts: k8s_masters
+  become: true
+  vars:
+    ansible_user: gabs
+    master_ip: "{{ hostvars[groups['k8s_masters'][0]]['ansible_host'] }}"
+  tasks:
+    - name: Download K3s installation script
+      get_url:
+        url: https://get.k3s.io
+        dest: /tmp/k3s-install.sh
+        mode: '0755'
+
+    - name: Install K3s on first master
+      shell: |
+        /tmp/k3s-install.sh server \
+          --node-taint CriticalAddonsOnly=true:NoExecute \
+          --cluster-init \
+          --tls-san {{ master_ip }}
+      when: inventory_hostname == groups['k8s_masters'][0]
+      
+    - name: Get K3s token from first master
+      slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: node_token
+      when: inventory_hostname == groups['k8s_masters'][0]
+
+    - name: Install K3s on other masters
+      shell: |
+        /tmp/k3s-install.sh server \
+          --server https://{{ master_ip }}:6443 \
+          --token {{ hostvars[groups['k8s_masters'][0]]['node_token']['content'] | b64decode | trim }} \
+          --node-taint CriticalAddonsOnly=true:NoExecute
+      when: inventory_hostname != groups['k8s_masters'][0]
+
+    - name: Enable and start K3s service
+      systemd:
+        name: k3s
+        enabled: yes
+        state: started
+      when: inventory_hostname != groups['k8s_masters'][0]
+
+- name: Install K3s on Worker Nodes
+  hosts: k8s_nodes
+  become: true
+  vars:
+    ansible_user: gabs
+    master_ip: "{{ hostvars[groups['k8s_masters'][0]]['ansible_host'] }}"
+  tasks:
+    - name: Download K3s installation script
+      get_url:
+        url: https://get.k3s.io
+        dest: /tmp/k3s-install.sh
+        mode: '0755'
+
+    - name: Install K3s agent
+      shell: |
+        K3S_TOKEN="{{ hostvars[groups['k8s_masters'][0]]['node_token']['content'] | b64decode | trim }}" \
+        INSTALL_K3S_EXEC="agent" K3S_URL="https://{{ master_ip }}:6443" \
+        /tmp/k3s-install.sh
+
+    - name: Enable and start K3s service
+      systemd:
+        name: k3s-agent
+        enabled: yes
+        state: started

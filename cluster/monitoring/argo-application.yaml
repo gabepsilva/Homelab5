@@ -1,0 +1,77 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-stack
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 55.5.0
+    helm:
+      values: |
+        grafana:
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            hosts:
+              - grafana.i.psilva.org
+          persistence:
+            enabled: true
+            storageClassName: longhorn
+            size: 10Gi
+          admin:
+            existingSecret: grafana-admin-credentials
+            userKey: admin-user
+            passwordKey: admin-password
+          
+        prometheus:
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            hosts: 
+              - prometheus.i.psilva.org
+          prometheusSpec:
+            retention: 15d
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: longhorn
+                  resources:
+                    requests:
+                      storage: 50Gi
+          
+        alertmanager:
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            hosts:
+              - alertmanager.i.psilva.org
+          persistence:
+            enabled: true
+            storageClassName: longhorn
+            size: 10Gi
+
+        defaultRules:
+          create: true
+          rules:
+            etcd: false
+            kubeScheduler: false
+
+        kubeEtcd:
+          enabled: false
+
+        kubeScheduler:
+          enabled: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

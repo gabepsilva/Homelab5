@@ -1,0 +1,19 @@
+---
+all:
+  children:
+    k8s_masters:
+      hosts:
+        k8s-master1.i.psilva.org:
+          ansible_host: k8s-master1.i.psilva.org
+        k8s-master2.i.psilva.org:
+          ansible_host: k8s-master2.i.psilva.org
+        k8s-master3.i.psilva.org:
+          ansible_host: k8s-master3.i.psilva.org
+    k8s_nodes:
+      hosts:
+        k8s-node1.i.psilva.org:
+          ansible_host: k8s-node1.i.psilva.org
+        k8s-node2.i.psilva.org:
+          ansible_host: k8s-node2.i.psilva.org
+        k8s-node3.i.psilva.org:
+          ansible_host: k8s-node3.i.psilva.org
