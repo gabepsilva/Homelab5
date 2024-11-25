@@ -1,0 +1,23 @@
+- name: Deploy Longhorn
+  hosts: localhost
+  connection: local
+  vars:
+    ansible_user: gabs
+    master_node: "{{ groups['k8s_masters'][0] }}"
+    local_kubeconfig: "{{ lookup('env', 'HOME') }}/.kube/config-homelab"
+
+  tasks:
+    - name: Ensure .kube directory exists
+      file:
+        path: "{{ lookup('env', 'HOME') }}/.kube"
+        state: directory
+        mode: '0700'
+
+    - name: Fetch kubeconfig from master
+      shell: ssh -o StrictHostKeyChecking=no {{ ansible_user }}@{{ hostvars[master_node]['ansible_host'] }} 'sudo cat /etc/rancher/k3s/k3s.yaml' > {{ local_kubeconfig }}
+
+    - name: Update server address in kubeconfig
+      ansible.builtin.replace:
+        path: "{{ local_kubeconfig }}"
+        regexp: 'https://127.0.0.1:6443'
+        replace: "https://{{ hostvars[master_node]['ansible_host'] }}:6443"

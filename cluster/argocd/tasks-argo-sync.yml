@@ -1,0 +1,27 @@
+---
+# This playbook handles ArgoCD application synchronization tasks
+# It retrieves admin credentials, logs in to ArgoCD, and syncs specified applications
+
+- name: Get ArgoCD admin password
+  kubernetes.core.k8s_info:
+    kind: Secret
+    name: argocd-initial-admin-secret
+    namespace: argocd
+    kubeconfig: "{{ local_kubeconfig }}"
+  register: argocd_secret
+
+- name: Set password fact
+  set_fact:
+    argocd_password: "{{ argocd_secret.resources[0].data.password | b64decode }}"
+
+- name: Login to ArgoCD
+  command: >
+    argocd login {{ argocd_server }}
+    --username admin
+    --password {{ argocd_password }}
+    --insecure
+  changed_when: false
+
+- name: Sync specific applications
+  command: "argocd app sync {{ item }}"
+  #ignore_errors: yes

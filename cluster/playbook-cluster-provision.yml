@@ -7,6 +7,16 @@
     ansible_user: gabs
     master_ip: "{{ hostvars[groups['k8s_masters'][0]]['ansible_host'] }}"
   tasks:
+
+    - name: Install required packages
+      apt:
+        name: 
+          - nfs-common
+          - open-iscsi
+          - python3-openshift
+        state: present
+        update_cache: yes
+
     - name: Download K3s installation script
       get_url:
         url: https://get.k3s.io

@@ -1,0 +1,114 @@
+---
+- name: Install Longhorn Prerequisites
+  hosts: k8s_masters, k8s_nodes
+  become: true
+  vars:
+    ansible_user: gabs
+  tasks:
+    - name: Install required packages
+      apt:
+        name: 
+          - nfs-common
+          - open-iscsi
+        state: present
+        update_cache: yes
+
+    - name: Load iscsi_tcp kernel module
+      community.general.modprobe:
+        name: iscsi_tcp
+        state: present
+
+    - name: Enable and start iscsid service
+      systemd:
+        name: iscsid
+        enabled: yes
+        state: started
+
+    - name: Stop and disable multipathd
+      systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: no
+      with_items:
+        - multipathd
+        - multipathd.socket
+
+
+- name: Deploy Longhorn
+  hosts: localhost
+  connection: local
+  vars:
+    ansible_user: gabs
+    master_node: "{{ groups['k8s_masters'][0] }}"
+    local_kubeconfig: "{{ lookup('env', 'HOME') }}/.kube/config-homelab"
+    argocd_server: "argocd.i.psilva.org"
+
+  tasks:
+      # you may face some dependencies issues on your local computer
+      # FEDORA
+      # sudo dnf install python3-pip
+      # pip3 install --user kubernetes
+    - name: Add Longhorn Helm repository
+      kubernetes.core.helm_repository:
+        name: longhorn
+        repo_url: https://charts.longhorn.io
+        kubeconfig: "{{ local_kubeconfig }}"
+
+    - name: Create longhorn-system namespace
+      kubernetes.core.k8s:
+        name: longhorn-system
+        api_version: v1
+        kind: Namespace
+        state: present
+        kubeconfig: "{{ local_kubeconfig }}"
+
+    - name: Apply Longhorn ArgoCD application
+      kubernetes.core.k8s:
+        state: present
+        src: argo-longhorn-install.yml
+        kubeconfig: "{{ local_kubeconfig }}"
+
+    - include_tasks: ../argocd/tasks-argo-sync.yml
+      loop:
+        - longhorn
+
+    - name: Wait for Longhorn pods to be ready
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: longhorn-system
+        label_selectors:
+          - app=longhorn-manager
+        kubeconfig: "{{ local_kubeconfig }}"
+      register: longhorn_pods
+      until: longhorn_pods.resources | length > 0 and (longhorn_pods.resources | map(attribute='status.phase') | list | unique == ['Running'])
+      retries: 30
+      delay: 10
+
+    - name: Create Longhorn Ingress
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: longhorn-server-ingress
+            namespace: longhorn-system
+          spec:
+            rules:
+              - host: longhorn.i.psilva.org
+                http:
+                  paths:
+                    - path: /
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: longhorn-frontend
+                          port:
+                            number: 80
+        kubeconfig: "{{ local_kubeconfig }}"
+
+    - name: Display completion message
+      debug:
+        msg: 
+          - "Longhorn has been successfully deployed!"
+          - "The kubeconfig file has been saved to: {{ local_kubeconfig }}"
