@@ -5,10 +5,6 @@ kind: PersistentVolumeClaim
 metadata:
   name: jenkins-home
   namespace: jenkins
-  annotations:
-    "helm.sh/resource-policy": keep  # Prevents deletion during helm uninstall
-  finalizers:
-    - kubernetes.io/pvc-protection   # Protects against deletion when pods are using it
 spec:
   accessModes:
     - ReadWriteOnce

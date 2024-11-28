@@ -6,7 +6,7 @@
     ansible_user: gabs
     kubeconfig: /etc/rancher/k3s/k3s.yaml
   vars_files:
-    - git-credentials.yml  # This file should be encrypted with ansible-vault
+    - git-credentials.yml
   
   tasks:
     - name: Create argocd namespace

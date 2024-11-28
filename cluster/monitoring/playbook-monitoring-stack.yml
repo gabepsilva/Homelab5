@@ -1,0 +1,50 @@
+- name: Deploy Kubernetes Monitoring Stack
+  hosts: localhost
+  gather_facts: false
+  
+  vars_files:
+    - grafana_credentials.yml
+
+  tasks:
+    - name: Create monitoring namespace
+      kubernetes.core.k8s:
+        name: monitoring
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    - name: Create Grafana admin secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: grafana-admin-credentials
+            namespace: monitoring
+          type: Opaque
+          stringData:
+            admin-user: "{{ vault_grafana_admin_user }}"
+            admin-password: "{{ vault_grafana_admin_password }}"
+
+    - name: Add Prometheus Helm repository
+      kubernetes.core.helm_repository:
+        name: prometheus-community
+        repo_url: https://prometheus-community.github.io/helm-charts
+
+    - name: Install Prometheus Stack
+      kubernetes.core.helm:
+        name: prometheus
+        chart_ref: prometheus-community/kube-prometheus-stack
+        release_namespace: monitoring
+        create_namespace: false
+        values_files:
+          - values.yml
+
+
+    - name: Create Grafana Ingress
+      kubernetes.core.k8s:
+        state: present
+        template: 'grafana_ingress.yml'
+        validate:
+          fail_on_error: yes

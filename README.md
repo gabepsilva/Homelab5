@@ -59,7 +59,6 @@ ansible all -i cluster/inventory.yml -m ping -u gabs
 ansible-playbook -i cluster/inventory.yml cluster/playbook-cluster-provision.yml
 ansible-playbook -i cluster/inventory.yml cluster/playbook-local-setup.yml
 kubectl get nodes
-
 ```
 
 5. Deploy ArgoCD:
@@ -78,10 +77,24 @@ ansible-playbook -i cluster/inventory.yml cluster/argocd/playbook-deploy-argocd.
 ansible-playbook -i cluster/inventory.yml cluster/longhorn/playbook-deploy-longhorn.yml
 ```
 
-7. Access to the management portals
+6.5. Restore Longhorn Backups
+
+7. Deploy Monitoring
+```bash
+ansible-playbook -i cluster/inventory.yml cluster/monitoring/playbook-monitoring-stack.yml --vault-password-file ~/.vault_pass
+```
+
+8. Install Jenkins
+kubectl apply -f apps/jenkins/argo-application.yaml 
+
+
+
+# Access to the management portals
 
 https://argocd.i.psilva.org
 http://longhorn.i.psilva.org
+http://grafana.i.psilva.org
+http://jenkins.i.psilva.org
 
 
 ## Security Considerations

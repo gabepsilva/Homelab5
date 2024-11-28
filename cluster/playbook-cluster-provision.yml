@@ -1,5 +1,4 @@
 ---
-# cluster.yml
 - name: Install K3s on Master Nodes
   hosts: k8s_masters
   become: true
@@ -27,6 +26,11 @@
       shell: |
         /tmp/k3s-install.sh server \
           --node-taint CriticalAddonsOnly=true:NoExecute \
+          --kube-controller-manager-arg bind-address=0.0.0.0 \
+          --kube-proxy-arg metrics-bind-address=0.0.0.0 \
+          --kube-scheduler-arg bind-address=0.0.0.0 \
+          --etcd-expose-metrics true \
+          --kubelet-arg containerd=/run/k3s/containerd/containerd.sock \
           --cluster-init \
           --tls-san {{ master_ip }}
       when: inventory_hostname == groups['k8s_masters'][0]

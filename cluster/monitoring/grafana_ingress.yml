@@ -1,0 +1,19 @@
+---
+# jenkins-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name:  grafana-ingress
+  namespace: monitoring
+spec:
+  rules:
+  - host: grafana.i.psilva.org
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 80
