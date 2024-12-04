@@ -1,0 +1,11 @@
+[Unit]
+Description=GPU Temperature Control Service
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/gpu-temp-control.py -c 1 -t 50 -p auto
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

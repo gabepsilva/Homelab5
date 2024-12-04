@@ -36,6 +36,7 @@ This repository contains Ansible playbooks for setting up a highly available Kub
 └── README.md
 ```
 
+
 ## Installation Steps
 
 1. Clone this repository:
@@ -54,8 +55,21 @@ export ANSIBLE_HOST_KEY_CHECKING=False
 ansible all -i cluster/inventory.yml -m ping -u gabs
 ```
 
+4. Make sure you have sudoer permissions
+```bash
+ansible-playbook -i cluster/inventory.yml cluster/playbook-sudoer.yml --ask-become-pass
+```
+
+4. Setup the AMD GPU nodes
+```bash
+ansible-playbook -i cluster/inventory.yml cluster/amd-gpu-node/playbook-ubuntu24.04-rocm-setup.yml
+```
+
+
+
 4. Deploy the K3s cluster:
 ```bash
+# break this to add a node or master without full rebuild - Break into roles instead of large playbooks
 ansible-playbook -i cluster/inventory.yml cluster/playbook-cluster-provision.yml
 ansible-playbook -i cluster/inventory.yml cluster/playbook-local-setup.yml
 kubectl get nodes

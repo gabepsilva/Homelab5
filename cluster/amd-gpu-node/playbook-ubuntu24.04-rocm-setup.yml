@@ -1,0 +1,105 @@
+---
+- name: Install ROCm and GPU Temperature Control
+  hosts: amd_gpu_nodes
+  become: yes
+  vars:
+    ansible_user: gabs
+    ubuntu_version: noble
+    rocm_version: 6.2.4
+
+  tasks:
+    - name: Install Linux headers and extra modules
+      apt:
+        name: 
+          - "linux-headers-{{ ansible_kernel }}"
+          - "linux-modules-extra-{{ ansible_kernel }}"
+        state: present
+
+    - name: Add user to render and video groups
+      user:
+        name: "{{ ansible_user }}"
+        groups: render,video
+        append: yes
+
+    - name: Configure adduser.conf
+      lineinfile:
+        path: /etc/adduser.conf
+        line: "{{ item }}"
+        create: yes
+      loop:
+        - "ADD_EXTRA_GROUPS=1"
+        - "EXTRA_GROUPS=video"
+        - "EXTRA_GROUPS=render"
+
+    - name: Create apt keyrings directory
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download and install ROCm GPG key
+      block:
+        - name: Download ROCm GPG key
+          get_url:
+            url: https://repo.radeon.com/rocm/rocm.gpg.key
+            dest: /tmp/rocm.gpg.key
+
+        - name: Convert and install GPG key
+          shell: cat /tmp/rocm.gpg.key | gpg --dearmor > /etc/apt/keyrings/rocm.gpg
+
+    - name: Add AMDGPU repository
+      copy:
+        content: "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/amdgpu/{{ rocm_version }}/ubuntu {{ ubuntu_version }} main"
+        dest: /etc/apt/sources.list.d/amdgpu.list
+
+    - name: Add ROCm repository
+      copy:
+        content: "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/{{ rocm_version }} {{ ubuntu_version }} main"
+        dest: /etc/apt/sources.list.d/rocm.list
+
+    - name: Configure ROCm package priority
+      copy:
+        content: |
+          Package: *
+          Pin: release o=repo.radeon.com
+          Pin-Priority: 600
+        dest: /etc/apt/preferences.d/rocm-pin-600
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install AMDGPU DKMS
+      apt:
+        name: amdgpu-dkms
+        state: present
+
+    - name: Reboot
+      ansible.builtin.reboot:
+        reboot_timeout: 60
+
+    - name: Install ROCm
+      apt:
+        name: rocm
+        state: present
+
+    - name: Copy GPU temperature control script
+      copy:
+        src: ./gpu-temp-control.py
+        dest: /usr/local/bin/gpu-temp-control.py
+        mode: '0755'
+
+    - name: Copy GPU temperature control service file
+      copy:
+        src: ./gpu-temp-control.service
+        dest: /etc/systemd/system/gpu-temp-control.service
+        mode: '0644'
+
+    - name: Enable and start GPU temperature control service
+      systemd:
+        name: gpu-temp-control.service
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+
