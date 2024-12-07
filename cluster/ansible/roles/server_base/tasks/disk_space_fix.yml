@@ -1,0 +1,32 @@
+---
+- name: Get root partition information
+  ansible.builtin.shell: |
+    df / | tail -1 | awk '{print $1}'
+  register: root_partition
+  changed_when: false
+
+- name: Extract device and partition number
+  ansible.builtin.set_fact:
+    device_name: "{{ root_partition.stdout | regex_replace('/dev/([a-z]+)\\d+', '\\1') }}"
+    partition_number: "{{ root_partition.stdout | regex_replace('/dev/[a-z]+(\\d+)', '\\1') }}"
+
+- name: Extend partition using growpart
+  ansible.builtin.command: growpart /dev/{{ device_name }} {{ partition_number }}
+  register: growpart_result
+  changed_when: "'CHANGED' in growpart_result.stdout"
+  failed_when: 
+    - growpart_result.rc != 0 
+    - "'NOCHANGE' not in growpart_result.stdout"
+
+- name: Get filesystem type of root partition
+  ansible.builtin.command: findmnt -no FSTYPE /
+  register: fs_type
+  changed_when: false
+
+- name: Resize ext filesystem
+  ansible.builtin.command: resize2fs /dev/{{ device_name }}{{ partition_number }}
+  when: fs_type.stdout in ['ext2', 'ext3', 'ext4']
+
+- name: Resize XFS filesystem
+  ansible.builtin.command: xfs_growfs /
+  when: fs_type.stdout == 'xfs'

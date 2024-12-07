@@ -1,0 +1,9 @@
+---
+
+- name: Increase disk space (if needed)
+  become: true
+  ansible.builtin.import_tasks: disk_space_fix.yml
+
+- name: Amend server hostname
+  become: true
+  ansible.builtin.import_tasks: hostnames.yml

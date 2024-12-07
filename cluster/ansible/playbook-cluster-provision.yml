@@ -3,8 +3,9 @@
   hosts: k8s_masters
   become: true
   vars:
-    ansible_user: gabs
+    ansible_user: ubuntu
     master_ip: "{{ hostvars[groups['k8s_masters'][0]]['ansible_host'] }}"
+    k3s_version: v1.31.2+k3s1
   tasks:
 
     - name: Install required packages
@@ -22,16 +23,16 @@
         dest: /tmp/k3s-install.sh
         mode: '0755'
 
+    # K3S versions: https://github.com/k3s-io/k3s/releases
     - name: Install K3s on first master
       shell: |
-        /tmp/k3s-install.sh server \
-          --node-taint CriticalAddonsOnly=true:NoExecute \
+        INSTALL_K3S_CHANNEL={{ k3s_version }} /tmp/k3s-install.sh server \
+          --cluster-init \
           --kube-controller-manager-arg bind-address=0.0.0.0 \
           --kube-proxy-arg metrics-bind-address=0.0.0.0 \
           --kube-scheduler-arg bind-address=0.0.0.0 \
           --etcd-expose-metrics true \
           --kubelet-arg containerd=/run/k3s/containerd/containerd.sock \
-          --cluster-init \
           --tls-san {{ master_ip }}
       when: inventory_hostname == groups['k8s_masters'][0]
       
@@ -43,10 +44,11 @@
 
     - name: Install K3s on other masters
       shell: |
-        /tmp/k3s-install.sh server \
+        INSTALL_K3S_CHANNEL={{ k3s_version }} /tmp/k3s-install.sh server \
           --server https://{{ master_ip }}:6443 \
           --token {{ hostvars[groups['k8s_masters'][0]]['node_token']['content'] | b64decode | trim }} \
-          --node-taint CriticalAddonsOnly=true:NoExecute
+          --node-taint CriticalAddonsOnly=true:NoExecute \
+          --tls-san {{ master_ip }}
       when: inventory_hostname != groups['k8s_masters'][0]
 
     - name: Enable and start K3s service
@@ -60,7 +62,7 @@
   hosts: k8s_nodes
   become: true
   vars:
-    ansible_user: gabs
+    ansible_user: ubuntu
     master_ip: "{{ hostvars[groups['k8s_masters'][0]]['ansible_host'] }}"
   tasks:
     - name: Download K3s installation script

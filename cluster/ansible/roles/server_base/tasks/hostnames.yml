@@ -1,0 +1,19 @@
+- name: Set hostname
+  hostname:
+    name: "{{ inventory_hostname }}"  # Uses the inventory hostname as the system hostname
+  
+- name: Update /etc/hosts file
+  lineinfile:
+    path: /etc/hosts
+    line: "127.0.1.1 {{ inventory_hostname }}"
+    regexp: '^127\.0\.1\.1'
+    state: present
+
+- name: Verify hostname is set correctly
+  command: hostname
+  register: hostname_result
+  changed_when: false
+
+- name: Reboot the server
+  reboot:
+    reboot_timeout: 120 # seconds

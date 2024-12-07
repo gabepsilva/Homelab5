@@ -1,0 +1,26 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Upgrade all packages
+  apt:
+    upgrade: full
+
+- name: Install and configure QEMU guest agent and virtual kernel tools
+  block:
+    - name: Install QEMU guest agent and virtual kernel packages
+      apt:
+        name:
+          - qemu-guest-agent
+          - linux-virtual
+          - linux-tools-virtual
+          - linux-cloud-tools-virtual
+        state: present
+        update_cache: yes
+      
+    - name: Enable and start QEMU guest agent
+      systemd:
+        name: qemu-guest-agent
+        state: started
+        enabled: yes

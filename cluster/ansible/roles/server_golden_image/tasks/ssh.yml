@@ -1,0 +1,45 @@
+---
+- name: Ensure .ssh directory exists
+  file:
+    path: "/home/{{ sudo_user }}/.ssh"
+    state: directory
+    mode: '0700'
+    owner: "{{ sudo_user }}"
+    group: "{{ sudo_user }}"
+
+- name: Ensure authorized_keys file exists
+  file:
+    path: "/home/{{ sudo_user }}/.ssh/authorized_keys"
+    state: touch
+    mode: '0400'
+
+- name: Download and add SSH keys for each GitHub user
+  block:
+    - name: Download SSH key from GitHub
+      get_url:
+        url: "https://github.com/{{ item }}.keys"
+        dest: "/tmp/github_keys_{{ item }}"
+        mode: '0600'
+      register: download_result
+      loop: "{{ github_users }}"
+
+    - name: Read downloaded SSH keys
+      slurp:
+        src: "/tmp/github_keys_{{ item }}"
+      register: ssh_keys_content
+      loop: "{{ github_users }}"
+
+    - name: Append GitHub SSH keys to authorized_keys
+      lineinfile:
+        path: "~/.ssh/authorized_keys"
+        line: "{{ (ssh_keys_content.results[ansible_loop.index0].content | b64decode).split('\n')[0] }}"
+        state: present
+      loop: "{{ github_users }}"
+      loop_control:
+        extended: yes
+
+    - name: Clean up temporary key files
+      file:
+        path: "/tmp/github_keys_{{ item }}"
+        state: absent
+      loop: "{{ github_users }}"

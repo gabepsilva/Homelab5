@@ -3,7 +3,7 @@
   hosts: amd_gpu_nodes
   become: yes
   vars:
-    ansible_user: gabs
+    ansible_user: ubuntu
     ubuntu_version: noble
     rocm_version: 6.2.4
 

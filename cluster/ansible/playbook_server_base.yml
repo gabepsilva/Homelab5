@@ -1,0 +1,19 @@
+
+---
+- name: Setup cluster foundations
+  hosts: k8s_servers
+  become: true
+  vars:
+    ansible_user: ubuntu
+  roles:
+    - server_base
+
+- name: Install ROCm and GPU Temperature Control
+  hosts: k8s_nodes_agpu
+  become: true
+  vars:
+    ansible_user: ubuntu
+    ubuntu_version: noble
+    rocm_version: 6.2.4
+  roles:
+    - role: amd-gpu

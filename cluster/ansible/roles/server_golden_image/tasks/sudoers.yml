@@ -1,0 +1,19 @@
+---
+- name: Add ubuntu user to sudoers with NOPASSWD
+  lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^{{ sudo_user }}\s'
+    line: '{{ sudo_user }} ALL=(ALL) NOPASSWD: ALL'
+    validate: '/usr/sbin/visudo -cf %s'
+
+- name: Ensure sudo group exists
+  group:
+    name: sudo
+    state: present
+
+- name: Add ubuntu user to sudo group
+  user:
+    name: "{{ sudo_user }}"
+    groups: sudo
+    append: yes

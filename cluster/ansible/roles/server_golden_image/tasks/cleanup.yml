@@ -1,0 +1,55 @@
+---
+  - name: Clear apt cache
+    apt:
+      autoclean: yes
+      autoremove: yes
+
+  - name: Remove old kernels
+    shell: apt-get purge -y $(dpkg -l linux-{image,headers}-* | awk '/^ii/{print $2}' | grep -v "$(uname -r)")
+    ignore_errors: true
+
+  - name: Clear systemd journal logs
+    command: journalctl --vacuum-time=1d
+
+  - name: Clear audit logs
+    file:
+      path: /var/log/audit
+      state: absent
+
+  - name: Clear all logs in /var/log
+    shell: |
+      find /var/log -type f -name '*.log' -exec truncate -s 0 {} \;
+      find /var/log -type f -name '*.gz' -exec rm {} \;
+      find /var/log -type f -name '*.[0-9]' -exec rm {} \;
+
+  - name: Clear bash history for all users
+    shell: |
+      for user in $(ls /home); do
+        rm -f /home/$user/.bash_history
+        rm -f /home/$user/.zsh_history
+      done
+      rm -f /root/.bash_history
+      rm -f /root/.zsh_history
+
+  - name: Clear tmp directories
+    shell: |
+      rm -rf /tmp/*
+      rm -rf /var/tmp/*
+
+  - name: Clear cloud-init logs and state
+    shell: |
+      cloud-init clean --logs
+      rm -rf /var/lib/cloud/instances/*
+      rm -rf /var/lib/cloud/data/*
+    ignore_errors: true
+
+  - name: Clear machine-id (will be regenerated on next boot)
+    shell: |
+      truncate -s 0 /etc/machine-id
+      rm -f /var/lib/dbus/machine-id
+      ln -s /etc/machine-id /var/lib/dbus/machine-id
+
+  - name: Zero out free space (this may take a while)
+    shell: dd if=/dev/zero of=/zero.fill bs=1M || true && sync && rm -f /zero.fill
+    ignore_errors: true
+

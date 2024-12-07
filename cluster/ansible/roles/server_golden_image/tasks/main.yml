@@ -1,0 +1,17 @@
+---  
+
+- name: Include system update tasks
+  become: true
+  ansible.builtin.import_tasks: system_packages.yml
+
+- name: Include sudoers configuration tasks
+  become: true
+  ansible.builtin.import_tasks: sudoers.yml
+
+- name: Include SSH configuration tasks
+  become: false
+  ansible.builtin.import_tasks: ssh.yml
+
+- name: Include system cleanup tasks
+  become: true
+  ansible.builtin.import_tasks: cleanup.yml
