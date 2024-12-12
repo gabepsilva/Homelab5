@@ -9,7 +9,8 @@
 
 ```bash
 cd cluster/ansible
-ansible-playbook -i inventory_onprem.yml playbook_golden_image.yml --ask-pass --ask-become-pass
+ansible-playbook -i inventory_onprem.yml playbook_k8s_golden_image.yml --ask-pass --ask-become-pass
+ansible-playbook -i inventory_onprem.yml playbook_vpn_golden_image.yml --ask-pass --ask-become-pass
 ```
 
 3. In Proxmox, convert this VM to a template with:
@@ -18,6 +19,12 @@ qm stop <template-id> --skiplock --timeout 0
 qm template <template-id>
 ```
 
+
+## Create the VPN Servers
+```bash
+cd cluster/ansible
+ansible-playbook -i inventory_onprem.yml playbook_vpn_servers_base.yml
+```
 
 ## Create the cluster
 1. Create the cluster
@@ -28,7 +35,7 @@ qm template <template-id>
 
 ## Set the goldem image basics
 ```bash
-ansible-playbook -i inventory_onprem.yml playbook_server_base.yml
+ansible-playbook -i inventory_onprem.yml playbook_k8s_servers_base.yml
 ```
 
 6. Deploy the K3s cluster:

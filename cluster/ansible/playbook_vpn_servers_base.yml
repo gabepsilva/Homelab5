@@ -1,0 +1,9 @@
+
+---
+- name: Setup VPN Server Foundations
+  hosts: vpn_servers
+  become: true
+  vars:
+    ansible_user: ubuntu
+  roles:
+    - server_base

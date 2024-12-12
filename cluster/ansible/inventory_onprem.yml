@@ -3,10 +3,12 @@ all:
   children:
     k8s:
       children:
-        golden_image:
+        k8s_golden_image: # optional
           hosts:
-            k8s-golden.i.psilva.org:
-              ansible_host: k8s-golden.i.psilva.org
+            k8s-golden-net1.i.psilva.org:
+              ansible_host: k8s-golden-net1.i.psilva.org
+            k8s-golden-net2.i.psilva.org:
+              ansible_host: k8s-golden-net2.i.psilva.org
         k8s_servers:
           children:
             k8s_masters:
@@ -31,4 +33,25 @@ all:
                     hosts:
                       k8s-node4-agpu.i.psilva.org:
                         ansible_host: k8s-node4-agpu.i.psilva.org
-
+                k8s_nodes_gaws:
+                  hosts:
+                    ec2-18-226-82-155.us-east-2.compute.amazonaws.com:
+                      ansible_host: ec2-18-226-82-155.us-east-2.compute.amazonaws.com
+    vpn:
+      children:
+        vpn_golden_image:
+          hosts:
+            vpn-golden-net1.i.psilva.org:
+              ansible_host: vpn-golden-net1.i.psilva.org
+            vpn-golden-net2.i.psilva.org:
+              ansible_host: vpn-golden-net2.i.psilva.org
+        vpn_servers:
+          children:
+            vpn_onprem1:
+              hosts:
+                vpn-onprem1.i.psilva.org:
+                  ansible_host: vpn-onprem1.i.psilva.org
+            vpn_onprem2:
+              hosts:
+                vpn-onprem2.i.psilva.org:
+                  ansible_host: vpn-onprem2.i.psilva.org
