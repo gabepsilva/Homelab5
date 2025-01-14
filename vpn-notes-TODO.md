@@ -2,6 +2,8 @@
 # WG SERVER
 # ------------
 
+sudo su
+
 sudo apt update
 sudo apt install wireguard
 
@@ -23,9 +25,13 @@ PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o
 PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o $INTERFACE -j MASQUERADE
 
 
-[Peer]
-PublicKey = AddTheClientPublicKeyStringHere=
-AllowedIPs = 10.0.0.2/32
+#[Peer]
+#PublicKey = AddTheClientPublicKeyStringHere=
+#AllowedIPs = 10.0.0.2/32
+
+#[Peer]
+#PublicKey = AddTheClientPublicKeyStringHere=
+#AllowedIPs = 10.0.0.3/32
 EOF
 
 
@@ -47,7 +53,9 @@ sudo systemctl start wg-quick@wg0
 # WG CLIENT
 # ------------
 
-sudo apt install wireguard
+apt update
+sudo su
+apt install wireguard
 
 
 cd /etc/wireguard
@@ -68,18 +76,17 @@ PostDown = iptables -D INPUT -i wg0 -j ACCEPT; iptables -D OUTPUT -o wg0 -j ACCE
 
 
 [Peer]
-PublicKey = AddTheServerPublicKeyStringHere=
+PublicKey = nGd33qcJfvxjsTDexoSXGzeuo9lFiyrg0b7WE1zQXDM=
 AllowedIPs = 10.0.0.0/24  
-Endpoint = vpn-onprem2.i.psilva.org:51820
+Endpoint = vpn-server.psilva.org:51820
 PersistentKeepalive = 25
 EOF
 
 
-
-# Start/Up the interface
-sudo wg-quick up wg0
 # Stop/Down the interface
 sudo wg-quick down wg0
+# Start/Up the interface
+sudo wg-quick up wg0
 # Check status
 sudo wg show
 
@@ -93,41 +100,92 @@ sudo systemctl status wg-quick@wg0
 
 
 #LOGS 
-# View logs for the WireGuard service
-sudo journalctl -u wg-reconnect@wg0
+sudo journalctl -u wg-quick@wg0.service
+
 
 # Follow logs in real-time
-sudo journalctl -u wg-reconnect@wg0 -f
+sudo journalctl -u wg-quick@wg0.service -f
 
 # See just the latest logs
-sudo journalctl -u wg-reconnect@wg0 -n 50
+sudo journalctl -u wg-quick@wg0.service -n 50
 
 # View logs since last boot
-sudo journalctl -u wg-reconnect@wg0 -b
+sudo journalctl -u wg-quick@wg0.service -b
 
 
 
 
-#reconnect on restart and boot
-sudo nano /etc/systemd/system/wg-reconnect@.service
 
-[Unit]
-Description=Watchdog for WireGuard VPN Interface %I
-After=network-online.target
-Wants=network-online.target
+# EXAMPLE config
 
-[Service]
-Type=simple
-ExecStart=/usr/bin/wg-quick up %i
-ExecStop=/usr/bin/wg-quick down %i
-Restart=always
-RestartSec=30
+## WG SERVER ON PREM
+```config
+cat /etc/wireguard/wg0.conf 
+[Interface]
+PrivateKey = CD0wK3E5gY4s24KLU7gZtcxxFIOsOXcbQjfWasDJ+kA=
+Address = 10.0.0.1/24
+ListenPort = 51820
 
-[Install]
-WantedBy=multi-user.target
+PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE; iptables -A INPUT -i wg0 -j ACCEPT
+PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE; iptables -D INPUT -i wg0 -j ACCEPT
 
-# activate service
-sudo systemctl daemon-reload
-sudo systemctl enable wg-reconnect@wg0
-sudo systemctl start wg-reconnect@wg0
 
+
+[Peer]
+PublicKey = ...=
+AllowedIPs = 10.0.0.2/32
+
+[Peer]
+PublicKey = ...=
+AllowedIPs = 10.0.0.3/32, 172.31.0.0/16
+root@vpn-server:/home/ubuntu# 
+```
+
+
+## WG CLIENT ON PREM
+
+
+```config
+cat /etc/wireguard/wg0.conf 
+[Interface]
+PrivateKey = ...=
+Address = 10.0.0.2/24
+ListenPort = 42150
+PostUp = iptables -A INPUT -i wg0 -j ACCEPT; iptables -A OUTPUT -o wg0 -j ACCEPT
+PostDown = iptables -D INPUT -i wg0 -j ACCEPT; iptables -D OUTPUT -o wg0 -j ACCEPT
+
+
+[Peer]
+PublicKey = ...=
+AllowedIPs = 10.0.0.0/24 #, 172.31.0.0/16 # allow this server to communicate with the aws vpc whiout routing through the vpn server
+Endpoint = vpn-server.i.psilva.org:51820
+PersistentKeepalive = 25
+```
+
+
+
+## WG CLIENT EC2
+
+```config
+cat /etc/wireguard/wg0.conf 
+[Interface]
+PrivateKey = ...=
+Address = 10.0.0.3/24
+ListenPort = 42150
+PostUp = iptables -A INPUT -i wg0 -j ACCEPT; iptables -A OUTPUT -o wg0 -j ACCEPT
+PostDown = iptables -D INPUT -i wg0 -j ACCEPT; iptables -D OUTPUT -o wg0 -j ACCEPT
+
+
+[Peer]
+PublicKey = ...=
+AllowedIPs = 10.0.0.0/24, 10.10.0.0/24, 172.31.0.0/16 
+Endpoint = 24.226.117.119:51820
+PersistentKeepalive = 25
+
+
+
+# may need this to enable comm from other servers to on prem
+#echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+#sysctl -p
+
+```
