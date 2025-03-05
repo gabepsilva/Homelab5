@@ -1,0 +1,37 @@
+# roles/wireguard/tasks/main.yml
+---
+- name: Install required packages
+  package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - wireguard
+    - wireguard-tools
+  notify: "restart wireguard service"
+
+- name: Create WireGuard configuration directory
+  file:
+    path: /etc/wireguard
+    state: directory
+    mode: '0700'
+
+- name: Configure WireGuard interface
+  template:
+    src: wg0.conf.j2
+    dest: "/etc/wireguard/{{ wireguard_interface }}.conf"
+    mode: '0600'
+  notify: "restart wireguard service"
+
+- name: Enable WireGuard interface
+  service:
+    name: "wg-quick@{{ wireguard_interface }}"
+    state: started
+    enabled: yes
+
+- name: Enable IP forwarding
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    state: present
+    reload: yes
+  when: wireguard_enable_ip_forwarding | bool  # Added condition using the new variable

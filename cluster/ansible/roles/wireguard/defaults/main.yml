@@ -1,0 +1,2 @@
+sudo_user: ubuntu
+wireguard_enable_ip_forwarding: true
